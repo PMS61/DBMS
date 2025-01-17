@@ -1,101 +1,304 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+import Papa from "papaparse";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [posts, setPosts] = useState([]);
+  const [analytics, setAnalytics] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [formData, setFormData] = useState({
+    post_type: "",
+    date_posted: "",
+    likes: "",
+    shares: "",
+    comments: "",
+  });
+  const [editingRow, setEditingRow] = useState(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const fetchData = async () => {
+    const { data: postsData } = await supabase.from("posts").select("*");
+    const { data: analyticsData } = await supabase.from("analytics").select("*");
+    setPosts(postsData || []);
+    setAnalytics(analyticsData || []);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentPosts = posts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(posts.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await supabase.from("posts").insert([formData]);
+    setFormData({ post_type: "", date_posted: "", likes: "", shares: "", comments: "" });
+    fetchData();
+  };
+
+  const handleEdit = (postid) => {
+    setEditingRow(postid);
+  };
+
+  const handleSave = async (postid) => {
+    const post = posts.find((p) => p.postid === postid);
+    await supabase.from("posts").update(post).eq("postid", postid);
+    setEditingRow(null);
+    fetchData();
+  };
+
+  const handleDelete = async (postid) => {
+    await supabase.from("posts").delete().eq("postid", postid);
+    fetchData();
+  };
+
+  const handleInputChange = (postid, field, value) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post.postid === postid ? { ...post, [field]: value } : post
+      )
+    );
+  };
+
+  const handleCSVUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const parsedData = results.data.map((row) => ({
+          post_type: row.post_type,
+          date_posted: row.date_posted,
+          likes: parseInt(row.likes, 10) || 0,
+          shares: parseInt(row.shares, 10) || 0,
+          comments: parseInt(row.comments, 10) || 0,
+        }));
+
+        await supabase.from("posts").insert(parsedData);
+        fetchData();
+      },
+      error: (error) => {
+        console.error("Error parsing CSV:", error);
+      },
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-blue-500 p-6 text-blue-900">
+      <h1 className="text-3xl font-bold mb-6">Social Analytics</h1>
+
+      <div className="bg-blue-400 p-6 shadow-md rounded-lg mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Upload CSV</h2>
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleCSVUpload}
+          className="border border-blue-300 rounded-lg p-2 w-full"
+        />
+      </div>
+
+      <div className="bg-blue-400 p-6 shadow-md rounded-lg mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Add Post</h2>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <input
+            type="text"
+            placeholder="Post Type"
+            value={formData.post_type}
+            onChange={(e) => setFormData({ ...formData, post_type: e.target.value })}
+            className="border border-blue-300 rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Likes"
+            value={formData.likes}
+            onChange={(e) => setFormData({ ...formData, likes: e.target.value })}
+            className="border border-blue-300 rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Shares"
+            value={formData.shares}
+            onChange={(e) => setFormData({ ...formData, shares: e.target.value })}
+            className="border border-blue-300 rounded-lg p-2"
+          />
+          <input
+            type="number"
+            placeholder="Comments"
+            value={formData.comments}
+            onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+            className="border border-blue-300 rounded-lg p-2"
+          />
+          <button type="submit" className="bg-blue-600 text-white rounded-lg p-2">
+            Add Post
+          </button>
+        </form>
+      </div>
+
+      <div className="bg-blue-400 p-6 shadow-md rounded-lg mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Posts</h2>
+        <table className="w-full text-left border border-blue-300 rounded-lg">
+          <thead>
+            <tr>
+              <th className="border border-blue-300 p-2">Post Type</th>
+              <th className="border border-blue-300 p-2">Likes</th>
+              <th className="border border-blue-300 p-2">Shares</th>
+              <th className="border border-blue-300 p-2">Comments</th>
+              <th className="border border-blue-300 p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentPosts.map((post) => (
+              <tr key={post.postid}>
+                {editingRow === post.postid ? (
+                  <>
+                    <td className="border border-blue-300 p-2">
+                      <input
+                        type="text"
+                        value={post.post_type}
+                        onChange={(e) =>
+                          handleInputChange(post.postid, "post_type", e.target.value)
+                        }
+                        className="border border-blue-300 rounded-lg p-1"
+                      />
+                    </td>
+                    <td className="border border-blue-300 p-2">
+                      <input
+                        type="number"
+                        value={post.likes}
+                        onChange={(e) =>
+                          handleInputChange(post.postid, "likes", e.target.value)
+                        }
+                        className="border border-blue-300 rounded-lg p-1"
+                      />
+                    </td>
+                    <td className="border border-blue-300 p-2">
+                      <input
+                        type="number"
+                        value={post.shares}
+                        onChange={(e) =>
+                          handleInputChange(post.postid, "shares", e.target.value)
+                        }
+                        className="border border-blue-300 rounded-lg p-1"
+                      />
+                    </td>
+                    <td className="border border-blue-300 p-2">
+                      <input
+                        type="number"
+                        value={post.comments}
+                        onChange={(e) =>
+                          handleInputChange(post.postid, "comments", e.target.value)
+                        }
+                        className="border border-blue-300 rounded-lg p-1"
+                      />
+                    </td>
+                    <td className="border border-blue-300 p-2">
+                      <button
+                        onClick={() => handleSave(post.postid)}
+                        className="bg-green-500 text-white rounded-lg px-2 py-1"
+                      >
+                        Save
+                      </button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="border border-blue-300 p-2">{post.post_type}</td>
+                    <td className="border border-blue-300 p-2">{post.likes}</td>
+                    <td className="border border-blue-300 p-2">{post.shares}</td>
+                    <td className="border border-blue-300 p-2">{post.comments}</td>
+                    <td className="border border-blue-300 p-2">
+                      <button
+                        onClick={() => handleEdit(post.postid)}
+                        className="bg-yellow-500 text-white rounded-lg px-2 py-1"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(post.postid)}
+                        className="bg-red-500 text-white rounded-lg px-2 py-1 ml-2"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="mt-4 flex justify-between items-center">
+          <div className="text-sm">
+            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, posts.length)} of {posts.length} entries
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="bg-blue-600 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            {[...Array(totalPages)].map((_, index) => (
+              <button
+                key={index + 1}
+                onClick={() => paginate(index + 1)}
+                className={`px-3 py-1 rounded-lg ${
+                  currentPage === index + 1
+                    ? "bg-blue-700 text-white"
+                    : "bg-blue-600 text-white"
+                }`}
+              >
+                {index + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="bg-blue-600 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      <div className="bg-blue-400 p-6 shadow-md rounded-lg">
+        <h2 className="text-2xl font-semibold mb-4">Analytics</h2>
+        <table className="w-full text-left border border-blue-300 rounded-lg">
+          <thead>
+            <tr>
+              <th className="border border-blue-300 p-2">Post Type</th>
+              <th className="border border-blue-300 p-2">Avg Likes</th>
+              <th className="border border-blue-300 p-2">Avg Comments</th>
+              <th className="border border-blue-300 p-2">Avg Shares</th>
+            </tr>
+          </thead>
+          <tbody>
+            {analytics.map((item) => (
+              <tr key={item.post_type}>
+                <td className="border border-blue-300 p-2">{item.post_type}</td>
+                <td className="border border-blue-300 p-2">{item.avg_likes.toFixed(2)}</td>
+                <td className="border border-blue-300 p-2">{item.avg_comments.toFixed(2)}</td>
+                <td className="border border-blue-300 p-2">{item.avg_shares.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
