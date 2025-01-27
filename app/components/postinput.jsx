@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Papa from "papaparse";
 
 export default function PostsInput({ onFormSubmit, onCSVUpload }) {
@@ -8,28 +8,18 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
     likes: "",
     shares: "",
     comments: "",
-    hashtags: [], // This will store hashtag IDs
+    hashtags: [], // This will store hashtag names
   });
 
-  const [hashtagsOptions, setHashtagsOptions] = useState([]); // State to store fetched hashtags
-
-  // Fetch hashtags from the database on component mount
-  useEffect(() => {
-    const fetchHashtags = async () => {
-      try {
-        const response = await fetch("/api/hashtags"); // Replace with your API endpoint
-        if (!response.ok) {
-          throw new Error("Failed to fetch hashtags");
-        }
-        const data = await response.json();
-        setHashtagsOptions(data); // Set the fetched hashtags
-      } catch (error) {
-        console.error("Error fetching hashtags:", error);
-      }
-    };
-
-    fetchHashtags();
-  }, []);
+  // Manually add the 6 hashtags (only names)
+  const hashtagsOptions = [
+    "#Fitness",
+    "#Tech",
+    "#AI",
+    "#Photography",
+    "#Health",
+    "#Innovation",
+  ];
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -112,9 +102,9 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
           onChange={handleHashtagChange}
           className="border border-blue-300 rounded-lg p-2"
         >
-          {hashtagsOptions.map((hashtag) => (
-            <option key={hashtag.hashtag_id} value={hashtag.hashtag_id}>
-              {hashtag.hashtag}
+          {hashtagsOptions.map((hashtag, index) => (
+            <option key={index} value={hashtag}>
+              {hashtag}
             </option>
           ))}
         </select>
