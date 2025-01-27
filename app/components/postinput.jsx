@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Papa from "papaparse";
 
 export default function PostsInput({ onFormSubmit, onCSVUpload }) {
@@ -8,12 +8,39 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
     likes: "",
     shares: "",
     comments: "",
+    hashtags: [], // This will store hashtag IDs
   });
+
+  const [hashtagsOptions, setHashtagsOptions] = useState([]); // State to store fetched hashtags
+
+  // Fetch hashtags from the database on component mount
+  useEffect(() => {
+    const fetchHashtags = async () => {
+      try {
+        const response = await fetch("/api/hashtags"); // Replace with your API endpoint
+        if (!response.ok) {
+          throw new Error("Failed to fetch hashtags");
+        }
+        const data = await response.json();
+        setHashtagsOptions(data); // Set the fetched hashtags
+      } catch (error) {
+        console.error("Error fetching hashtags:", error);
+      }
+    };
+
+    fetchHashtags();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onFormSubmit(formData);
-    setFormData({ post_type: "", date_posted: "", likes: "", shares: "", comments: "" });
+    setFormData({
+      post_type: "",
+      likes: "",
+      shares: "",
+      comments: "",
+      hashtags: [],
+    });
   };
 
   const handleCSVUpload = (e) => {
@@ -32,6 +59,13 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
     });
   };
 
+  const handleHashtagChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions).map(
+      (option) => option.value
+    );
+    setFormData({ ...formData, hashtags: selectedOptions });
+  };
+
   return (
     <div className="bg-blue-400 p-6 shadow-md rounded-lg mb-8">
       <h2 className="text-2xl font-semibold mb-4">Add Post</h2>
@@ -40,31 +74,54 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
           type="text"
           placeholder="Post Type"
           value={formData.post_type}
-          onChange={(e) => setFormData({ ...formData, post_type: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, post_type: e.target.value })
+          }
           className="border border-blue-300 rounded-lg p-2"
         />
         <input
           type="number"
           placeholder="Likes"
           value={formData.likes}
-          onChange={(e) => setFormData({ ...formData, likes: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, likes: e.target.value })
+          }
           className="border border-blue-300 rounded-lg p-2"
         />
         <input
           type="number"
           placeholder="Shares"
           value={formData.shares}
-          onChange={(e) => setFormData({ ...formData, shares: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, shares: e.target.value })
+          }
           className="border border-blue-300 rounded-lg p-2"
         />
         <input
           type="number"
           placeholder="Comments"
           value={formData.comments}
-          onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, comments: e.target.value })
+          }
           className="border border-blue-300 rounded-lg p-2"
         />
-        <button type="submit" className="bg-blue-600 text-white rounded-lg p-2">
+        <select
+          multiple
+          value={formData.hashtags}
+          onChange={handleHashtagChange}
+          className="border border-blue-300 rounded-lg p-2"
+        >
+          {hashtagsOptions.map((hashtag) => (
+            <option key={hashtag.hashtag_id} value={hashtag.hashtag_id}>
+              {hashtag.hashtag}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="bg-blue-600 text-white rounded-lg p-2"
+        >
           Add Post
         </button>
       </form>
