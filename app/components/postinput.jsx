@@ -23,7 +23,10 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onFormSubmit(formData);
+    if (onFormSubmit) {
+      onFormSubmit(formData);
+    }
+    // Reset the form after submission
     setFormData({
       post_type: "",
       likes: "",
@@ -41,7 +44,9 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        onCSVUpload(results.data);
+        if (onCSVUpload) {
+          onCSVUpload(results.data);
+        }
       },
       error: (error) => {
         console.error("Error parsing CSV:", error);
