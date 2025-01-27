@@ -11,7 +11,7 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
     hashtags: [], // This will store hashtag names
   });
 
-  // Manually add the 6 hashtags (only names)
+  // Predefined hashtags
   const hashtagsOptions = [
     "#Fitness",
     "#Tech",
@@ -26,7 +26,7 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
     if (onFormSubmit) {
       onFormSubmit(formData);
     }
-    // Reset the form after submission
+    // Reset the form
     setFormData({
       post_type: "",
       likes: "",
@@ -54,11 +54,11 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
     });
   };
 
-  const handleHashtagChange = (e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions).map(
-      (option) => option.value
-    );
-    setFormData({ ...formData, hashtags: selectedOptions });
+  const handleHashtagChange = (hashtag) => {
+    const updatedHashtags = formData.hashtags.includes(hashtag)
+      ? formData.hashtags.filter((tag) => tag !== hashtag) // Remove if already selected
+      : [...formData.hashtags, hashtag]; // Add if not selected
+    setFormData({ ...formData, hashtags: updatedHashtags });
   };
 
   return (
@@ -101,18 +101,28 @@ export default function PostsInput({ onFormSubmit, onCSVUpload }) {
           }
           className="border border-blue-300 rounded-lg p-2"
         />
-        <select
-          multiple
-          value={formData.hashtags}
-          onChange={handleHashtagChange}
-          className="border border-blue-300 rounded-lg p-2"
-        >
-          {hashtagsOptions.map((hashtag, index) => (
-            <option key={index} value={hashtag}>
-              {hashtag}
-            </option>
-          ))}
-        </select>
+
+        <div className="bg-white p-4 border border-blue-300 rounded-lg">
+          <p className="text-lg font-medium mb-2">Select Hashtags:</p>
+          <div className="flex flex-wrap gap-2">
+            {hashtagsOptions.map((hashtag, index) => (
+              <label
+                key={index}
+                className="flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-lg cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  value={hashtag}
+                  checked={formData.hashtags.includes(hashtag)}
+                  onChange={() => handleHashtagChange(hashtag)}
+                  className="cursor-pointer"
+                />
+                {hashtag}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <button
           type="submit"
           className="bg-blue-600 text-white rounded-lg p-2"
